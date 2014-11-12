@@ -1,0 +1,1 @@
+ERTS_INCLUDE_DIR ?= /usr/local/Cellar/erlang/17.3/lib/erlang/erts-6.2/include/
