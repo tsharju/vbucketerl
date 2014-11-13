@@ -8,5 +8,5 @@ ebin
 rel/example_project
 .concrete/DEV_MODE
 .rebar
-priv/*.so
-c_src/env.mk
+.erlang.mk.packages.v2
+logs
