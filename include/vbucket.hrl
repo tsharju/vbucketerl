@@ -6,6 +6,6 @@
     user :: string(),
     password :: string(),
     servers :: [string()],
-    vbuckets :: [string()],
-    hash_algorithm = crc :: atom() 
+    vbuckets :: [_],
+    hash_algorithm = crc :: atom()
 }).

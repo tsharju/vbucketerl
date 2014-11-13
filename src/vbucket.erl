@@ -25,5 +25,16 @@ build_config([], Config) ->
   {ok, Config};
 build_config([{<<"numReplicas">>, N} | Rest], Config) ->
   build_config(Rest, Config#vbucket_config{num_replicas=N});
+build_config([{<<"vBucketServerMap">>, M} | Rest] Config) ->
+  {Vbuckets, NumReplicas, HashAlgorithm, Servers} = handle_server_map(M);
+  build_config(Rest, Config#vbucket_config{vbuckets=VBuckets});
 build_config([{_, _} | Rest], Config) ->
   build_config(Rest, Config).
+
+handle_server_map(ServerMap) ->
+  handle_server_map(ServerMap, [], 0, crc, []).
+
+handle_server_map([], Vbuckets, NumReplicas, HashAlgorithm, Servers) ->
+  {Vbuckets, NumReplicas, HashAlgorithm, Servers};
+handle_server_map([{<<"vBucketMap">>, Vbuckets} | Rest], _Vbuckets, NumReplicas, HashAlgorithm, Servers) ->
+  handle_server_map(Rest, Vbuckets)
