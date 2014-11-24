@@ -1,0 +1,13 @@
+{application, vbucket, [
+	{description, "Virtual buckets mapping"},
+	{vsn, "0.1.0"},
+	{id, "git"},
+	{modules, [vbucket, vbucket_app]},
+	{registered, [vbucket]},
+	{applications, [
+		kernel,
+		stdlib
+	]},
+	{mod, {vbucket_app, []}},
+	{env, []}
+]}.

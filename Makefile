@@ -1,3 +1,2 @@
-PROJECT = vbucketerl
-DEPS = jiffy
+PROJECT = vbucket
 include erlang.mk
