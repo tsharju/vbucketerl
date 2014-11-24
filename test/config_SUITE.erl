@@ -6,7 +6,7 @@
 
 -include_lib("common_test/include/ct.hrl").
 
-all() -> [test_empty_config, test_basic_config].
+all() -> [test_empty_config, test_basic_config, test_server_index_out_of_bounds].
 
 init_per_testcase(_TestCase, Config) ->
   _Pid = vbucket:start(),
@@ -30,3 +30,10 @@ test_basic_config(_Config) ->
   undefined = vbucket:config_get_password(),
 
   {"server1", 11211} = vbucket:config_get_server(0).
+
+test_server_index_out_of_bounds(_Config) ->
+  ConfigString = "{\"hashAlgorithm\": \"CRC\",\"numReplicas\": 2,\"serverList\": [\"server1:11211\",\"server2:11210\",\"server3:11211\"],\"vBucketMap\": [[ 0, 1, 2 ],[ 1, 2, 0 ],[ 2, 1, -1 ],[ 1, 2, 0 ]]}",
+  ok = vbucket:config_parse(ConfigString),
+
+  not_found = vbucket:config_get_server(3),
+  not_found = vbucket:config_get_server(10).

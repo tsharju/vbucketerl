@@ -72,9 +72,15 @@ static void config_get_server(VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to
   long server_index;
   ei_decode_long(buff, index, &server_index);
 
-  server = vbucket_config_get_server(h, (int) server_index);
-
-  ei_x_encode_string(to_send, server);
+  if (vbucket_config_get_num_servers(h) > server_index)
+  {
+    server = vbucket_config_get_server(h, (int) server_index);
+    ei_x_encode_string(to_send, server);
+  }
+  else
+  {
+    ei_x_encode_atom(to_send, "not_found");
+  }
 }
 
 static ErlDrvData vbucket_erl_driver_start(ErlDrvPort port, char *buffer)

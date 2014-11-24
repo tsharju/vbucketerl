@@ -77,7 +77,7 @@ config_get_user() ->
 config_get_password() ->
   call_port({?DRV_CONFIG_GET_PASSWORD, {}}).
 
--spec config_get_server(Index :: integer()) -> {Hostname :: string(), Port :: integer()}.
+-spec config_get_server(Index :: integer()) -> {Hostname :: string(), Port :: integer()} | not_found.
 config_get_server(Index) ->
   call_port({?DRV_CONFIG_GET_SERVER, Index}).
 
