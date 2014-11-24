@@ -9,6 +9,7 @@
 #define DRV_CONFIG_GET_NUM_SERVERS 3
 #define DRV_CONFIG_GET_USER 4
 #define DRV_CONFIG_GET_PASSWORD 5
+#define DRV_CONFIG_GET_SERVER 6
 
 typedef struct drv_data_s {
   ErlDrvPort port;
@@ -64,6 +65,18 @@ static void config_get_string(int command, VBUCKET_CONFIG_HANDLE h, ei_x_buff *t
   }
 }
 
+static void config_get_server(VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to_send, int *index)
+{
+  const char* server;
+
+  long server_index;
+  ei_decode_long(buff, index, &server_index);
+
+  server = vbucket_config_get_server(h, (int) server_index);
+
+  ei_x_encode_string(to_send, server);
+}
+
 static ErlDrvData vbucket_erl_driver_start(ErlDrvPort port, char *buffer)
 {
   drv_data_t* d = (drv_data_t*)driver_alloc(sizeof(drv_data_t));
@@ -117,6 +130,10 @@ static void vbucket_erl_driver_output(ErlDrvData handle, char *buff, ErlDrvSizeT
     case DRV_CONFIG_GET_USER:
     case DRV_CONFIG_GET_PASSWORD:
       config_get_string(command, d->vb_config_handle, &to_send);
+      break;
+
+    case DRV_CONFIG_GET_SERVER:
+      config_get_server(d->vb_config_handle, buff, &to_send, &index);
       break;
   }
 

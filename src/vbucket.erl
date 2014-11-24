@@ -31,6 +31,10 @@
 -define(DRV_CONFIG_GET_NUM_SERVERS, 3).
 -define(DRV_CONFIG_GET_USER, 4).
 -define(DRV_CONFIG_GET_PASSWORD, 5).
+-define(DRV_CONFIG_GET_SERVER, 6).
+-define(DRV_CONFIG_GET_COUCH_API_BASE, 7).
+-define(DRV_CONFIG_GET_REST_API_SERVER, 8).
+-define(DRV_CONFIG_IS_CONFIG_NODE, 9).
 
 start() ->
   PrivDir = get_priv_dir(),
@@ -65,17 +69,17 @@ config_get_num_vbuckets() ->
 config_get_num_servers() ->
   call_port({?DRV_CONFIG_GET_NUM_SERVERS, {}}).
 
--spec config_get_user() -> string().
+-spec config_get_user() -> string() | undefined.
 config_get_user() ->
   call_port({?DRV_CONFIG_GET_USER, {}}).
 
--spec config_get_password() -> string().
+-spec config_get_password() -> string() | undefined.
 config_get_password() ->
   call_port({?DRV_CONFIG_GET_PASSWORD, {}}).
 
 -spec config_get_server(Index :: integer()) -> {Hostname :: string(), Port :: integer()}.
-config_get_server(_Index) ->
-  not_implemented.
+config_get_server(Index) ->
+  call_port({?DRV_CONFIG_GET_SERVER, Index}).
 
 -spec config_get_couch_api_base(Index :: integer()) -> string() | undefined.
 config_get_couch_api_base(_Index) ->

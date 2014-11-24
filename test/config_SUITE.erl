@@ -27,4 +27,6 @@ test_basic_config(_Config) ->
   3 = vbucket:config_get_num_servers(),
 
   undefined = vbucket:config_get_user(),
-  undefined = vbucket:config_get_password().
+  undefined = vbucket:config_get_password(),
+
+  {"server1", 11211} = vbucket:config_get_server(0).
