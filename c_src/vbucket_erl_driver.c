@@ -1,3 +1,7 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
 #include "ei.h"
 #include "erl_driver.h"
 
@@ -65,9 +69,13 @@ static void config_get_string(int command, VBUCKET_CONFIG_HANDLE h, ei_x_buff *t
   }
 }
 
-static void config_get_server(VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to_send, int *index)
+static void config_get_server(ErlDrvPort port, VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to_send, int *index)
 {
   const char* server;
+  char* tmp;
+  char* host;
+  char* portnum;
+  const char* search = ":";
 
   long server_index;
   ei_decode_long(buff, index, &server_index);
@@ -75,7 +83,19 @@ static void config_get_server(VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to
   if (vbucket_config_get_num_servers(h) > server_index)
   {
     server = vbucket_config_get_server(h, (int) server_index);
-    ei_x_encode_string(to_send, server);
+    tmp = driver_alloc(strlen(server) + 1);
+    if (tmp == NULL)
+    {
+      driver_failure_posix(port, errno);
+    }
+
+    strcpy(tmp, server);
+    host = strsep(&tmp, search);
+    portnum = tmp;
+
+    ei_x_encode_tuple_header(to_send, 2);
+    ei_x_encode_string(to_send, host);
+    ei_x_encode_long(to_send, atol(portnum));
   }
   else
   {
@@ -85,9 +105,26 @@ static void config_get_server(VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to
 
 static ErlDrvData vbucket_erl_driver_start(ErlDrvPort port, char *buffer)
 {
-  drv_data_t* d = (drv_data_t*)driver_alloc(sizeof(drv_data_t));
+  drv_data_t* d;
+  VBUCKET_CONFIG_HANDLE h;
+
+  d = (drv_data_t*)driver_alloc(sizeof(drv_data_t));
+  if (d == NULL)
+  {
+    errno = ENOMEM;
+    return ERL_DRV_ERROR_ERRNO;
+  }
+
+  h = vbucket_config_create();
+  if (h == NULL)
+  {
+    errno = ENOMEM;
+    return ERL_DRV_ERROR_ERRNO;
+  }
+
   d->port = port;
-  d->vb_config_handle = vbucket_config_create();
+  d->vb_config_handle = h;
+
   return (ErlDrvData)d;
 }
 
@@ -139,7 +176,7 @@ static void vbucket_erl_driver_output(ErlDrvData handle, char *buff, ErlDrvSizeT
       break;
 
     case DRV_CONFIG_GET_SERVER:
-      config_get_server(d->vb_config_handle, buff, &to_send, &index);
+      config_get_server(d->port, d->vb_config_handle, buff, &to_send, &index);
       break;
   }
 
