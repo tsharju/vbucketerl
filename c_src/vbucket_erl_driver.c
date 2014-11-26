@@ -17,13 +17,19 @@
 #define DRV_CONFIG_GET_COUCH_API_BASE 7
 #define DRV_CONFIG_GET_REST_API_SERVER 8
 #define DRV_CONFIG_IS_CONFIG_NODE 9
+#define DRV_CONFIG_GET_DISTRIBUTION_TYPE 10
+#define DRV_CONFIG_GET_VBUCKET_BY_KEY 11
+#define DRV_GET_MASTER 12
+#define DRV_GET_REPLICA 13
+#define DRV_MAP 14
+#define DRV_FOUND_INCORRECT_MASTER 15
 
 typedef struct drv_data_s {
   ErlDrvPort port;
   VBUCKET_CONFIG_HANDLE vb_config_handle;
 } drv_data_t;
 
-static void config_parse(VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to_send, int *index)
+static void config_parse(ErlDrvPort port, VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to_send, int *index)
 {
   char* data;
   int key_size = -1;
@@ -31,6 +37,11 @@ static void config_parse(VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to_send
 
   ei_get_type(buff, index, &erl_type, &key_size);
   data = driver_alloc(key_size);
+  if (data == NULL)
+  {
+    driver_failure_posix(port, errno);
+  }
+
   ei_decode_string(buff, index, data);
 
   if (vbucket_config_parse(h, LIBVBUCKET_SOURCE_MEMORY, data) == 0)
@@ -46,6 +57,30 @@ static void config_parse(VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to_send
     ei_x_encode_atom(to_send, "parsing_failed");
     ei_x_encode_string(to_send, vbucket_get_error_message(h));
   }
+}
+
+static void map(ErlDrvPort port, VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to_send, int *index)
+{
+  char *data;
+  int key_size = -1;
+  int erl_type = -1;
+
+  int vbucket_id, server_idx;
+
+  ei_get_type(buff, index, &erl_type, &key_size);
+  data = driver_alloc(key_size);
+  if (data == NULL)
+  {
+    driver_failure_posix(port, errno);
+  }
+
+  ei_decode_string(buff, index, data);
+
+  vbucket_map(h, data, key_size, &vbucket_id, &server_idx);
+
+  ei_x_encode_tuple_header(to_send, 2);
+  ei_x_encode_long(to_send, (long) vbucket_id);
+  ei_x_encode_long(to_send, (long) server_idx);
 }
 
 static void string_or_atom_undefined(const char *data, ei_x_buff *to_send)
@@ -183,7 +218,7 @@ static void vbucket_erl_driver_output(ErlDrvData handle, char *buff, ErlDrvSizeT
   switch (command)
   {
     case DRV_CONFIG_PARSE:
-      config_parse(d->vb_config_handle, buff, &to_send, &index);
+      config_parse(d->port, d->vb_config_handle, buff, &to_send, &index);
       break;
 
     case DRV_CONFIG_GET_NUM_REPLICAS:
@@ -208,6 +243,10 @@ static void vbucket_erl_driver_output(ErlDrvData handle, char *buff, ErlDrvSizeT
     case DRV_CONFIG_GET_REST_API_SERVER:
       config_get_server_data(command, d->port, d->vb_config_handle, buff, &to_send, &index);
       break;
+
+    case DRV_MAP:
+        map(d->port, d->vb_config_handle, buff, &to_send, &index);
+        break;
   }
 
   driver_output(d->port, to_send.buff, to_send.index);

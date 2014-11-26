@@ -18,7 +18,7 @@
          config_get_vbucket_by_key/1,
          get_master/1,
          get_replica/2,
-         map/3,
+         map/1,
          found_incorrect_master/2]).
 
 -include("vbucket.hrl").
@@ -35,6 +35,12 @@
 -define(DRV_CONFIG_GET_COUCH_API_BASE, 7).
 -define(DRV_CONFIG_GET_REST_API_SERVER, 8).
 -define(DRV_CONFIG_IS_CONFIG_NODE, 9).
+-define(DRV_CONFIG_GET_DISTRIBUTION_TYPE, 10).
+-define(DRV_CONFIG_GET_VBUCKET_BY_KEY, 11).
+-define(DRV_GET_MASTER, 12).
+-define(DRV_GET_REPLICA, 13).
+-define(DRV_MAP, 14).
+-define(DRV_FOUND_INCORRECT_MASTER, 15).
 
 start() ->
   PrivDir = get_priv_dir(),
@@ -108,8 +114,9 @@ get_master(_Id) ->
 get_replica(_Id, _Replica) ->
   not_implemented.
 
-map(_Key, _Vbucket, _Server) ->
-  not_implemented.
+-spec map(Key :: string()) -> {VbucketId :: integer(), ServerIndex :: integer()}.
+map(Key) ->
+  call_port({?DRV_MAP, Key}).
 
 found_incorrect_master(_Vbucket, _WrongServer) ->
   not_implemented.
