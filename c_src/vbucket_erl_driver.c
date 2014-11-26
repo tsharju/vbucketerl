@@ -14,6 +14,9 @@
 #define DRV_CONFIG_GET_USER 4
 #define DRV_CONFIG_GET_PASSWORD 5
 #define DRV_CONFIG_GET_SERVER 6
+#define DRV_CONFIG_GET_COUCH_API_BASE 7
+#define DRV_CONFIG_GET_REST_API_SERVER 8
+#define DRV_CONFIG_IS_CONFIG_NODE 9
 
 typedef struct drv_data_s {
   ErlDrvPort port;
@@ -45,6 +48,18 @@ static void config_parse(VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to_send
   }
 }
 
+static void string_or_atom_undefined(const char *data, ei_x_buff *to_send)
+{
+  if (data != NULL)
+  {
+    ei_x_encode_string(to_send, data);
+  }
+  else
+  {
+    ei_x_encode_atom(to_send, "undefined");
+  }
+}
+
 static void config_get_string(int command, VBUCKET_CONFIG_HANDLE h, ei_x_buff *to_send)
 {
   const char *data;
@@ -59,43 +74,56 @@ static void config_get_string(int command, VBUCKET_CONFIG_HANDLE h, ei_x_buff *t
       break;
   }
 
-  if (data != NULL)
-  {
-    ei_x_encode_string(to_send, data);
-  }
-  else
-  {
-    ei_x_encode_atom(to_send, "undefined");
-  }
+  string_or_atom_undefined(data, to_send);
 }
 
-static void config_get_server(ErlDrvPort port, VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to_send, int *index)
+static void get_server_host_port_tuple(const char *data, ei_x_buff *to_send, ErlDrvPort port)
 {
-  const char* server;
   char* tmp;
   char* host;
   char* portnum;
   const char* search = ":";
+
+  tmp = driver_alloc(strlen(data) + 1);
+  if (tmp == NULL)
+  {
+    driver_failure_posix(port, errno);
+  }
+
+  strcpy(tmp, data);
+  host = strsep(&tmp, search);
+  portnum = tmp;
+
+  ei_x_encode_tuple_header(to_send, 2);
+  ei_x_encode_string(to_send, host);
+  ei_x_encode_long(to_send, atol(portnum));
+}
+
+static void config_get_server_data(int command, ErlDrvPort port, VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to_send, int *index)
+{
+  const char* data;
 
   long server_index;
   ei_decode_long(buff, index, &server_index);
 
   if (vbucket_config_get_num_servers(h) > server_index)
   {
-    server = vbucket_config_get_server(h, (int) server_index);
-    tmp = driver_alloc(strlen(server) + 1);
-    if (tmp == NULL)
+    switch (command)
     {
-      driver_failure_posix(port, errno);
+      case DRV_CONFIG_GET_SERVER:
+        data = vbucket_config_get_server(h, (int) server_index);
+        // split the host:port string to a string int tuple
+        get_server_host_port_tuple(data, to_send, port);
+        break;
+      case DRV_CONFIG_GET_COUCH_API_BASE:
+        data = vbucket_config_get_couch_api_base(h, (int) server_index);
+        string_or_atom_undefined(data, to_send);
+        break;
+      case DRV_CONFIG_GET_REST_API_SERVER:
+        data = vbucket_config_get_rest_api_server(h, (int) server_index);
+        string_or_atom_undefined(data, to_send);
+        break;
     }
-
-    strcpy(tmp, server);
-    host = strsep(&tmp, search);
-    portnum = tmp;
-
-    ei_x_encode_tuple_header(to_send, 2);
-    ei_x_encode_string(to_send, host);
-    ei_x_encode_long(to_send, atol(portnum));
   }
   else
   {
@@ -176,7 +204,9 @@ static void vbucket_erl_driver_output(ErlDrvData handle, char *buff, ErlDrvSizeT
       break;
 
     case DRV_CONFIG_GET_SERVER:
-      config_get_server(d->port, d->vb_config_handle, buff, &to_send, &index);
+    case DRV_CONFIG_GET_COUCH_API_BASE:
+    case DRV_CONFIG_GET_REST_API_SERVER:
+      config_get_server_data(command, d->port, d->vb_config_handle, buff, &to_send, &index);
       break;
   }
 

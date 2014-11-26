@@ -82,8 +82,8 @@ config_get_server(Index) ->
   call_port({?DRV_CONFIG_GET_SERVER, Index}).
 
 -spec config_get_couch_api_base(Index :: integer()) -> string() | undefined.
-config_get_couch_api_base(_Index) ->
-  not_implemented.
+config_get_couch_api_base(Index) ->
+  call_port({?DRV_CONFIG_GET_COUCH_API_BASE, Index}).
 
 -spec config_get_rest_api_server(Index :: integer()) -> string() | undefined.
 config_get_rest_api_server(_Index) ->
