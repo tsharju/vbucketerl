@@ -34,7 +34,9 @@ test_basic_config(_Config) ->
   not_found = vbucket:config_get_server(3),
   not_found = vbucket:config_get_couch_api_base(3),
 
-  undefined = vbucket:config_get_couch_api_base(0).
+  undefined = vbucket:config_get_couch_api_base(0),
+
+  vbucket = vbucket:config_get_distribution_type().
 
 test_eight_node_config(_Config) ->
   {ok, Bin} = file:read_file("../../test/config/vbucket_eight_nodes.json"),
@@ -49,4 +51,6 @@ test_eight_node_config(_Config) ->
   {"172.16.16.76",12006} = vbucket:config_get_server(3),
 
   "http://172.16.16.76:9503/default" = vbucket:config_get_couch_api_base(3),
-  "http://172.16.16.76:9500/default" = vbucket:config_get_couch_api_base(0).
+  "http://172.16.16.76:9500/default" = vbucket:config_get_couch_api_base(0),
+
+  vbucket = vbucket:config_get_distribution_type().

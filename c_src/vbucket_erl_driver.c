@@ -244,9 +244,19 @@ static void vbucket_erl_driver_output(ErlDrvData handle, char *buff, ErlDrvSizeT
       config_get_server_data(command, d->port, d->vb_config_handle, buff, &to_send, &index);
       break;
 
+    case DRV_CONFIG_GET_DISTRIBUTION_TYPE:
+      if (vbucket_config_get_distribution_type(d->vb_config_handle) == VBUCKET_DISTRIBUTION_VBUCKET)
+      {
+        ei_x_encode_atom(&to_send, "vbucket");
+      }
+      else
+      {
+        ei_x_encode_atom(&to_send, "ketama");
+      }
+
     case DRV_MAP:
-        map(d->port, d->vb_config_handle, buff, &to_send, &index);
-        break;
+      map(d->port, d->vb_config_handle, buff, &to_send, &index);
+      break;
   }
 
   driver_output(d->port, to_send.buff, to_send.index);

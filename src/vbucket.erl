@@ -101,7 +101,7 @@ config_is_config_node(_Index) ->
 
 -spec config_get_distribution_type() -> vbucket | ketama.
 config_get_distribution_type() ->
-  not_implemented.
+  call_port({?DRV_CONFIG_GET_DISTRIBUTION_TYPE, {}}).
 
 -spec config_get_vbucket_by_key(Key :: string()) -> integer().
 config_get_vbucket_by_key(_Key) ->
