@@ -6,7 +6,7 @@
 
 -include_lib("common_test/include/ct.hrl").
 
-all() -> [test_empty_config, test_basic_config, test_server_index_out_of_bounds].
+all() -> [test_empty_config, test_basic_config, test_eight_node_config].
 
 init_per_testcase(_TestCase, Config) ->
   _Pid = vbucket:start(),
@@ -19,7 +19,8 @@ test_empty_config(_Config) ->
   {error, {parsing_failed, _}} = vbucket:config_parse("").
 
 test_basic_config(_Config) ->
-  ConfigString = "{\"hashAlgorithm\": \"CRC\",\"numReplicas\": 2,\"serverList\": [\"server1:11211\",\"server2:11210\",\"server3:11211\"],\"vBucketMap\": [[ 0, 1, 2 ],[ 1, 2, 0 ],[ 2, 1, -1 ],[ 1, 2, 0 ]]}",
+  {ok, Bin} = file:read_file("../../test/config/vbucket_basic.json"),
+  ConfigString = binary_to_list(Bin),
   ok = vbucket:config_parse(ConfigString),
 
   2 = vbucket:config_get_num_replicas(),
@@ -30,15 +31,22 @@ test_basic_config(_Config) ->
   undefined = vbucket:config_get_password(),
 
   {"server1", 11211} = vbucket:config_get_server(0),
+  not_found = vbucket:config_get_server(3),
+  not_found = vbucket:config_get_couch_api_base(3),
 
   undefined = vbucket:config_get_couch_api_base(0).
 
-test_server_index_out_of_bounds(_Config) ->
-  ConfigString = "{\"hashAlgorithm\": \"CRC\",\"numReplicas\": 2,\"serverList\": [\"server1:11211\",\"server2:11210\",\"server3:11211\"],\"vBucketMap\": [[ 0, 1, 2 ],[ 1, 2, 0 ],[ 2, 1, -1 ],[ 1, 2, 0 ]]}",
+test_eight_node_config(_Config) ->
+  {ok, Bin} = file:read_file("../../test/config/vbucket_eight_nodes.json"),
+  ConfigString = binary_to_list(Bin),
   ok = vbucket:config_parse(ConfigString),
 
-  not_found = vbucket:config_get_server(3),
-  not_found = vbucket:config_get_server(10),
+  2 = vbucket:config_get_num_replicas(),
+  16 = vbucket:config_get_num_vbuckets(),
+  8 = vbucket:config_get_num_servers(),
 
-  not_found = vbucket:config_get_couch_api_base(3),
-  not_found = vbucket:config_get_couch_api_base(10).
+  {"172.16.16.76",12000} = vbucket:config_get_server(0),
+  {"172.16.16.76",12006} = vbucket:config_get_server(3),
+
+  "http://172.16.16.76:9503/default" = vbucket:config_get_couch_api_base(3),
+  "http://172.16.16.76:9500/default" = vbucket:config_get_couch_api_base(0).
