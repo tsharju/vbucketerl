@@ -179,6 +179,29 @@ static void config_get_server_data(int command, ErlDrvPort port, VBUCKET_CONFIG_
   }
 }
 
+static void is_config_node(VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to_send, int *index)
+{
+  long server_index;
+
+  ei_decode_long(buff, index, &server_index);
+
+  if (vbucket_config_get_num_servers(h) > server_index)
+  {
+    if (vbucket_config_is_config_node(h, (int) server_index) != 0)
+    {
+      ei_x_encode_atom(to_send, "true");
+    }
+    else
+    {
+      ei_x_encode_atom(to_send, "false");
+    }
+  }
+  else
+  {
+    ei_x_encode_atom(to_send, "not_found");
+  }
+}
+
 static ErlDrvData vbucket_erl_driver_start(ErlDrvPort port, char *buffer)
 {
   drv_data_t* d;
@@ -259,6 +282,10 @@ static void vbucket_erl_driver_output(ErlDrvData handle, char *buff, ErlDrvSizeT
       case DRV_CONFIG_GET_COUCH_API_BASE:
       case DRV_CONFIG_GET_REST_API_SERVER:
         config_get_server_data(command, d->port, d->vb_config_handle, buff, &to_send, &index);
+        break;
+
+      case DRV_CONFIG_IS_CONFIG_NODE:
+        is_config_node(d->vb_config_handle, buff, &to_send, &index);
         break;
 
       case DRV_CONFIG_GET_DISTRIBUTION_TYPE:

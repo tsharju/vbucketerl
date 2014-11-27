@@ -98,9 +98,9 @@ config_get_couch_api_base(Index) ->
 config_get_rest_api_server(Index) ->
   call_port({?DRV_CONFIG_GET_REST_API_SERVER, Index}).
 
--spec config_is_config_node(Index :: integer()) -> boolean() | {error, no_config}.
-config_is_config_node(_Index) ->
-  not_implemented.
+-spec config_is_config_node(Index :: integer()) -> boolean() | not_found | {error, no_config}.
+config_is_config_node(Index) ->
+  call_port({?DRV_CONFIG_IS_CONFIG_NODE, Index}).
 
 -spec config_get_distribution_type() -> vbucket | ketama | undefined | {error, no_config}.
 config_get_distribution_type() ->
