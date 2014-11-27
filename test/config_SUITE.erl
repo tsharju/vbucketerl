@@ -80,7 +80,6 @@ test_config_not_parsed(_Config) ->
   {error, no_config} = vbucket:config_get_rest_api_server(0),
   {error,no_config} = vbucket:config_is_config_node(0),
   {error, no_config} = vbucket:config_get_distribution_type(),
-  not_implemented = vbucket:config_get_vbucket_by_key("foobar"),
   {error, no_config} = vbucket:get_master(0),
   {error, no_config} = vbucket:get_replica(0, 0),
   {error, no_config} = vbucket:map("foobar"),

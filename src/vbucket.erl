@@ -15,7 +15,6 @@
          config_get_rest_api_server/1,
          config_is_config_node/1,
          config_get_distribution_type/0,
-         config_get_vbucket_by_key/1,
          get_master/1,
          get_replica/2,
          map/1,
@@ -36,11 +35,10 @@
 -define(DRV_CONFIG_GET_REST_API_SERVER, 8).
 -define(DRV_CONFIG_IS_CONFIG_NODE, 9).
 -define(DRV_CONFIG_GET_DISTRIBUTION_TYPE, 10).
--define(DRV_CONFIG_GET_VBUCKET_BY_KEY, 11).
--define(DRV_GET_MASTER, 12).
--define(DRV_GET_REPLICA, 13).
--define(DRV_MAP, 14).
--define(DRV_FOUND_INCORRECT_MASTER, 15).
+-define(DRV_GET_MASTER, 11).
+-define(DRV_GET_REPLICA, 12).
+-define(DRV_MAP, 13).
+-define(DRV_FOUND_INCORRECT_MASTER, 14).
 
 start() ->
   PrivDir = get_priv_dir(),
@@ -107,10 +105,6 @@ config_is_config_node(Index) ->
 -spec config_get_distribution_type() -> vbucket | ketama | undefined | {error, no_config}.
 config_get_distribution_type() ->
   call_port({?DRV_CONFIG_GET_DISTRIBUTION_TYPE, {}}).
-
--spec config_get_vbucket_by_key(Key :: string()) -> integer() | {error, no_config}.
-config_get_vbucket_by_key(_Key) ->
-  not_implemented.
 
 -spec get_master(VbucketId :: integer()) -> ServerIndex :: integer() | {error, no_config}.
 get_master(VbucketId) ->
