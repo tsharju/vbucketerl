@@ -35,7 +35,7 @@ test_basic_config(_Config) ->
   not_found = vbucket:config_get_couch_api_base(3),
 
   undefined = vbucket:config_get_couch_api_base(0),
-
+  undefined = vbucket:config_get_rest_api_server(0),
   vbucket = vbucket:config_get_distribution_type().
 
 test_eight_node_config(_Config) ->
@@ -52,5 +52,6 @@ test_eight_node_config(_Config) ->
 
   "http://172.16.16.76:9503/default" = vbucket:config_get_couch_api_base(3),
   "http://172.16.16.76:9500/default" = vbucket:config_get_couch_api_base(0),
+  "172.16.16.76:9000" = vbucket:config_get_rest_api_server(0),
 
   vbucket = vbucket:config_get_distribution_type().
