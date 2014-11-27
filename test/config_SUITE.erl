@@ -65,7 +65,9 @@ test_eight_node_config(_Config) ->
   vbucket = vbucket:config_get_distribution_type(),
 
   4 = vbucket:get_master(8),
-  5 = vbucket:get_replica(8, 0).
+  5 = vbucket:get_replica(8, 0),
+
+  4 = vbucket:found_incorrect_master(8, 0).
 
 test_config_not_parsed(_Config) ->
   {error, no_config} = vbucket:config_get_num_replicas(),
@@ -82,7 +84,7 @@ test_config_not_parsed(_Config) ->
   {error, no_config} = vbucket:get_master(0),
   {error, no_config} = vbucket:get_replica(0, 0),
   {error, no_config} = vbucket:map("foobar"),
-  not_implemented = vbucket:found_incorrect_master(0, 0).
+  {error, no_config} = vbucket:found_incorrect_master(0, 0).
 
 test_config_parse_multiple_times(_Config) ->
   {ok, Bin1} = file:read_file("../../test/config/vbucket_basic.json"),

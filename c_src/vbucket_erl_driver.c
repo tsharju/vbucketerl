@@ -238,6 +238,26 @@ static void get_replica(VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to_send,
   }
 }
 
+static void found_incorrect_master(VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to_send, int *index)
+{
+  long vbucket_id;
+  long wrong_server;
+  int arity;
+
+  ei_decode_tuple_header(buff, index, &arity);
+  ei_decode_long(buff, index, &vbucket_id);
+  ei_decode_long(buff, index, &wrong_server);
+
+  if (vbucket_id < vbucket_config_get_num_vbuckets(h))
+  {
+    ei_x_encode_long(to_send, (long) vbucket_found_incorrect_master(h, (int) vbucket_id, (int) wrong_server));
+  }
+  else
+  {
+    ei_x_encode_atom(to_send, "not_found");
+  }
+}
+
 static ErlDrvData vbucket_erl_driver_start(ErlDrvPort port, char *buffer)
 {
   drv_data_t* d;
@@ -345,6 +365,10 @@ static void vbucket_erl_driver_output(ErlDrvData handle, char *buff, ErlDrvSizeT
 
       case DRV_MAP:
         map(d->port, d->vb_config_handle, buff, &to_send, &index);
+        break;
+
+      case DRV_FOUND_INCORRECT_MASTER:
+        found_incorrect_master(d->vb_config_handle, buff, &to_send, &index);
         break;
     }
   }

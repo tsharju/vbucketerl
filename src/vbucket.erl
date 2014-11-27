@@ -119,8 +119,8 @@ get_replica(VbucketId, Replica) ->
 map(Key) ->
   call_port({?DRV_MAP, Key}).
 
-found_incorrect_master(_Vbucket, _WrongServer) ->
-  not_implemented.
+found_incorrect_master(Vbucket, WrongServer) ->
+  call_port({?DRV_FOUND_INCORRECT_MASTER, {Vbucket, WrongServer}}).
 
 init() ->
   register(?MODULE, self()),
