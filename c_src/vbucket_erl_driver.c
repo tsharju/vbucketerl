@@ -29,22 +29,35 @@ typedef struct drv_data_s {
   VBUCKET_CONFIG_HANDLE vb_config_handle;
 } drv_data_t;
 
-static void config_parse(ErlDrvPort port, VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to_send, int *index)
+static void config_parse(drv_data_t *d, char *buff, ei_x_buff *to_send, int *index)
 {
   char* data;
   int key_size = -1;
   int erl_type = -1;
 
+  if (d->vb_config_handle != NULL)
+  {
+    // lets clear the old config
+    vbucket_config_destroy(d->vb_config_handle);
+  }
+
+  d->vb_config_handle = vbucket_config_create();
+  if (d->vb_config_handle == NULL)
+  {
+    errno = ENOMEM;
+    driver_failure_posix(d->port, errno);
+  }
+
   ei_get_type(buff, index, &erl_type, &key_size);
   data = driver_alloc(key_size);
   if (data == NULL)
   {
-    driver_failure_posix(port, errno);
+    driver_failure_posix(d->port, errno);
   }
 
   ei_decode_string(buff, index, data);
 
-  if (vbucket_config_parse(h, LIBVBUCKET_SOURCE_MEMORY, data) == 0)
+  if (vbucket_config_parse(d->vb_config_handle, LIBVBUCKET_SOURCE_MEMORY, data) == 0)
   {
     ei_x_encode_atom(to_send, "ok");
   }
@@ -55,7 +68,7 @@ static void config_parse(ErlDrvPort port, VBUCKET_CONFIG_HANDLE h, char *buff, e
     ei_x_encode_atom(to_send, "error");
     ei_x_encode_tuple_header(to_send, 2);
     ei_x_encode_atom(to_send, "parsing_failed");
-    ei_x_encode_string(to_send, vbucket_get_error_message(h));
+    ei_x_encode_string(to_send, vbucket_get_error_message(d->vb_config_handle));
   }
 }
 
@@ -169,7 +182,6 @@ static void config_get_server_data(int command, ErlDrvPort port, VBUCKET_CONFIG_
 static ErlDrvData vbucket_erl_driver_start(ErlDrvPort port, char *buffer)
 {
   drv_data_t* d;
-  VBUCKET_CONFIG_HANDLE h;
 
   d = (drv_data_t*)driver_alloc(sizeof(drv_data_t));
   if (d == NULL)
@@ -178,15 +190,8 @@ static ErlDrvData vbucket_erl_driver_start(ErlDrvPort port, char *buffer)
     return ERL_DRV_ERROR_ERRNO;
   }
 
-  h = vbucket_config_create();
-  if (h == NULL)
-  {
-    errno = ENOMEM;
-    return ERL_DRV_ERROR_ERRNO;
-  }
-
   d->port = port;
-  d->vb_config_handle = h;
+  d->vb_config_handle = NULL;
 
   return (ErlDrvData)d;
 }
@@ -194,7 +199,10 @@ static ErlDrvData vbucket_erl_driver_start(ErlDrvPort port, char *buffer)
 static void vbucket_erl_driver_stop(ErlDrvData drv_data)
 {
   drv_data_t* d = (drv_data_t*)drv_data;
-  vbucket_config_destroy(d->vb_config_handle);
+  if (d->vb_config_handle != NULL)
+  {
+    vbucket_config_destroy(d->vb_config_handle);
+  }
   driver_free(drv_data);
 }
 
@@ -215,48 +223,58 @@ static void vbucket_erl_driver_output(ErlDrvData handle, char *buff, ErlDrvSizeT
 
   ei_x_new_with_version(&to_send);
 
-  switch (command)
+  if (d->vb_config_handle == NULL && command != DRV_CONFIG_PARSE)
   {
-    case DRV_CONFIG_PARSE:
-      config_parse(d->port, d->vb_config_handle, buff, &to_send, &index);
-      break;
+    // config has not been parsed yet
+    ei_x_encode_tuple_header(&to_send, 2);
+    ei_x_encode_atom(&to_send, "error");
+    ei_x_encode_atom(&to_send, "no_config");
+  }
+  else
+  {
+    switch (command)
+    {
+      case DRV_CONFIG_PARSE:
+        config_parse(d, buff, &to_send, &index);
+        break;
 
-    case DRV_CONFIG_GET_NUM_REPLICAS:
-      ei_x_encode_long(&to_send, vbucket_config_get_num_replicas(d->vb_config_handle));
-      break;
+      case DRV_CONFIG_GET_NUM_REPLICAS:
+        ei_x_encode_long(&to_send, vbucket_config_get_num_replicas(d->vb_config_handle));
+        break;
 
-    case DRV_CONFIG_GET_NUM_VBUCKETS:
-      ei_x_encode_long(&to_send, vbucket_config_get_num_vbuckets(d->vb_config_handle));
-      break;
+      case DRV_CONFIG_GET_NUM_VBUCKETS:
+        ei_x_encode_long(&to_send, vbucket_config_get_num_vbuckets(d->vb_config_handle));
+        break;
 
-    case DRV_CONFIG_GET_NUM_SERVERS:
-      ei_x_encode_long(&to_send, vbucket_config_get_num_servers(d->vb_config_handle));
-      break;
+      case DRV_CONFIG_GET_NUM_SERVERS:
+        ei_x_encode_long(&to_send, vbucket_config_get_num_servers(d->vb_config_handle));
+        break;
 
-    case DRV_CONFIG_GET_USER:
-    case DRV_CONFIG_GET_PASSWORD:
-      config_get_string(command, d->vb_config_handle, &to_send);
-      break;
+      case DRV_CONFIG_GET_USER:
+      case DRV_CONFIG_GET_PASSWORD:
+        config_get_string(command, d->vb_config_handle, &to_send);
+        break;
 
-    case DRV_CONFIG_GET_SERVER:
-    case DRV_CONFIG_GET_COUCH_API_BASE:
-    case DRV_CONFIG_GET_REST_API_SERVER:
-      config_get_server_data(command, d->port, d->vb_config_handle, buff, &to_send, &index);
-      break;
+      case DRV_CONFIG_GET_SERVER:
+      case DRV_CONFIG_GET_COUCH_API_BASE:
+      case DRV_CONFIG_GET_REST_API_SERVER:
+        config_get_server_data(command, d->port, d->vb_config_handle, buff, &to_send, &index);
+        break;
 
-    case DRV_CONFIG_GET_DISTRIBUTION_TYPE:
-      if (vbucket_config_get_distribution_type(d->vb_config_handle) == VBUCKET_DISTRIBUTION_VBUCKET)
-      {
-        ei_x_encode_atom(&to_send, "vbucket");
-      }
-      else
-      {
-        ei_x_encode_atom(&to_send, "ketama");
-      }
+      case DRV_CONFIG_GET_DISTRIBUTION_TYPE:
+        if (vbucket_config_get_distribution_type(d->vb_config_handle) == VBUCKET_DISTRIBUTION_VBUCKET)
+        {
+          ei_x_encode_atom(&to_send, "vbucket");
+        }
+        else
+        {
+          ei_x_encode_atom(&to_send, "ketama");
+        }
 
-    case DRV_MAP:
-      map(d->port, d->vb_config_handle, buff, &to_send, &index);
-      break;
+      case DRV_MAP:
+        map(d->port, d->vb_config_handle, buff, &to_send, &index);
+        break;
+    }
   }
 
   driver_output(d->port, to_send.buff, to_send.index);

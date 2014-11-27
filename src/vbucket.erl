@@ -46,8 +46,10 @@ start() ->
   PrivDir = get_priv_dir(),
   case erl_ddll:load_driver(PrivDir, ?SHARED_LIB) of
     ok ->
+      io:format("DRIVER LOADED!!!"),
       ok;
     {error, already_loaded} ->
+      io:format("ALREADY LOADED!!!~n"),
       ok;
     {error, Error} ->
       exit(erl_ddll:format_error(Error))
@@ -56,6 +58,7 @@ start() ->
   spawn(?MODULE, init, []).
 
 stop() ->
+  io:format("DRIVER STOPPED"),
   close = call_port(close),
   ok.
 
@@ -63,58 +66,58 @@ stop() ->
 config_parse(ConfigData) ->
   call_port({?DRV_CONFIG_PARSE, ConfigData}).
 
--spec config_get_num_replicas() -> integer().
+-spec config_get_num_replicas() -> integer() | {error, no_config}.
 config_get_num_replicas() ->
   call_port({?DRV_CONFIG_GET_NUM_REPLICAS, {}}).
 
--spec config_get_num_vbuckets() -> integer().
+-spec config_get_num_vbuckets() -> integer() | {error, no_config}.
 config_get_num_vbuckets() ->
   call_port({?DRV_CONFIG_GET_NUM_VBUCKETS, {}}).
 
--spec config_get_num_servers() -> integer().
+-spec config_get_num_servers() -> integer() | {error, no_config}.
 config_get_num_servers() ->
   call_port({?DRV_CONFIG_GET_NUM_SERVERS, {}}).
 
--spec config_get_user() -> string() | undefined.
+-spec config_get_user() -> string() | undefined | {error, no_config}.
 config_get_user() ->
   call_port({?DRV_CONFIG_GET_USER, {}}).
 
--spec config_get_password() -> string() | undefined.
+-spec config_get_password() -> string() | undefined | {error, no_config}.
 config_get_password() ->
   call_port({?DRV_CONFIG_GET_PASSWORD, {}}).
 
--spec config_get_server(Index :: integer()) -> {Hostname :: string(), Port :: integer()} | not_found.
+-spec config_get_server(Index :: integer()) -> {Hostname :: string(), Port :: integer()} | not_found | {error, no_config}.
 config_get_server(Index) ->
   call_port({?DRV_CONFIG_GET_SERVER, Index}).
 
--spec config_get_couch_api_base(Index :: integer()) -> string() | undefined.
+-spec config_get_couch_api_base(Index :: integer()) -> string() | undefined | {error, no_config}.
 config_get_couch_api_base(Index) ->
   call_port({?DRV_CONFIG_GET_COUCH_API_BASE, Index}).
 
--spec config_get_rest_api_server(Index :: integer()) -> string() | undefined.
+-spec config_get_rest_api_server(Index :: integer()) -> string() | undefined | {error, no_config}.
 config_get_rest_api_server(Index) ->
   call_port({?DRV_CONFIG_GET_REST_API_SERVER, Index}).
 
--spec config_is_config_node(Index :: integer()) -> boolean().
+-spec config_is_config_node(Index :: integer()) -> boolean() | {error, no_config}.
 config_is_config_node(_Index) ->
   not_implemented.
 
--spec config_get_distribution_type() -> vbucket | ketama.
+-spec config_get_distribution_type() -> vbucket | ketama | undefined | {error, no_config}.
 config_get_distribution_type() ->
   call_port({?DRV_CONFIG_GET_DISTRIBUTION_TYPE, {}}).
 
--spec config_get_vbucket_by_key(Key :: string()) -> integer().
+-spec config_get_vbucket_by_key(Key :: string()) -> integer() | {error, no_config}.
 config_get_vbucket_by_key(_Key) ->
   not_implemented.
 
--spec get_master(Id :: integer()) -> integer().
+-spec get_master(Id :: integer()) -> integer() | {error, no_config}.
 get_master(_Id) ->
   not_implemented.
 
 get_replica(_Id, _Replica) ->
   not_implemented.
 
--spec map(Key :: string()) -> {VbucketId :: integer(), ServerIndex :: integer()}.
+-spec map(Key :: string()) -> {VbucketId :: integer(), ServerIndex :: integer()} | {error, no_config}.
 map(Key) ->
   call_port({?DRV_MAP, Key}).
 

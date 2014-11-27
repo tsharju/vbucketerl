@@ -6,14 +6,18 @@
 
 -include_lib("common_test/include/ct.hrl").
 
-all() -> [test_empty_config, test_basic_config, test_eight_node_config].
+all() -> [test_empty_config,
+          test_basic_config,
+          test_eight_node_config,
+          test_config_not_parsed,
+          test_config_parse_multiple_times].
 
 init_per_testcase(_TestCase, Config) ->
   _Pid = vbucket:start(),
   Config.
 
 end_per_testcase(_TestCase, _Config) ->
-  vbucket:stop().
+  ok.%% = vbucket:stop().
 
 test_empty_config(_Config) ->
   {error, {parsing_failed, _}} = vbucket:config_parse("").
@@ -55,3 +59,37 @@ test_eight_node_config(_Config) ->
   "172.16.16.76:9000" = vbucket:config_get_rest_api_server(0),
 
   vbucket = vbucket:config_get_distribution_type().
+
+test_config_not_parsed(_Config) ->
+  {error, no_config} = vbucket:config_get_num_replicas(),
+  {error, no_config} = vbucket:config_get_num_vbuckets(),
+  {error, no_config} = vbucket:config_get_num_servers(),
+  {error, no_config} = vbucket:config_get_user(),
+  {error, no_config} = vbucket:config_get_password(),
+  {error, no_config} = vbucket:config_get_server(0),
+  {error, no_config} = vbucket:config_get_couch_api_base(0),
+  {error, no_config} = vbucket:config_get_rest_api_server(0),
+  not_implemented = vbucket:config_is_config_node(0),
+  {error, no_config} = vbucket:config_get_distribution_type(),
+  not_implemented = vbucket:config_get_vbucket_by_key("foobar"),
+  not_implemented = vbucket:get_master(0),
+  not_implemented = vbucket:get_replica(0, 0),
+  {error, no_config} = vbucket:map("foobar"),
+  not_implemented = vbucket:found_incorrect_master(0, 0).
+
+test_config_parse_multiple_times(_Config) ->
+  {ok, Bin1} = file:read_file("../../test/config/vbucket_basic.json"),
+  ConfigString1 = binary_to_list(Bin1),
+  ok = vbucket:config_parse(ConfigString1),
+
+  2 = vbucket:config_get_num_replicas(),
+  4 = vbucket:config_get_num_vbuckets(),
+  3 = vbucket:config_get_num_servers(),
+
+  {ok, Bin2} = file:read_file("../../test/config/vbucket_eight_nodes.json"),
+  ConfigString2 = binary_to_list(Bin2),
+  ok = vbucket:config_parse(ConfigString2),
+
+  2 = vbucket:config_get_num_replicas(),
+  16 = vbucket:config_get_num_vbuckets(),
+  8 = vbucket:config_get_num_servers().
