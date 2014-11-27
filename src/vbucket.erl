@@ -119,8 +119,9 @@ get_replica(VbucketId, Replica) ->
 map(Key) ->
   call_port({?DRV_MAP, Key}).
 
-found_incorrect_master(Vbucket, WrongServer) ->
-  call_port({?DRV_FOUND_INCORRECT_MASTER, {Vbucket, WrongServer}}).
+-spec found_incorrect_master(VbucketId :: integer(), WrongServerIndex :: integer()) -> ServerIndex :: integer() | {error, no_config}.
+found_incorrect_master(VbucketId, WrongServerIndex) ->
+  call_port({?DRV_FOUND_INCORRECT_MASTER, {VbucketId, WrongServerIndex}}).
 
 init() ->
   register(?MODULE, self()),
