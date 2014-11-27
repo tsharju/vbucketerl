@@ -55,9 +55,14 @@ start() ->
 
   spawn(?MODULE, init, []).
 
+-spec stop() -> ok | {error, {atom(), string()}}.
 stop() ->
-  close = call_port(close),
-  ok.
+  case call_port(close) of
+    close ->
+      ok;
+    Error ->
+      Error
+  end.
 
 -spec config_parse(ConfigData :: string()) -> ok | {error, {atom(), string()}}.
 config_parse(ConfigData) ->
@@ -142,10 +147,15 @@ loop(Port) ->
       end,
       loop(Port);
     close ->
-      Port ! {self(), close}
+      Port ! {self(), close},
+      receive
+        {Port, closed} ->
+          exit(normal)
+      end;
+    {'EXIT', Port, Reason} ->
+      exit({port_terminated, Reason})
   end.
 
--spec call_port(close | {integer(), any()}) -> {ok, any()} | {error, {atom(), string()}}.
 call_port(close) ->
   ?MODULE ! close;
 call_port(Msg) ->
