@@ -46,10 +46,8 @@ start() ->
   PrivDir = get_priv_dir(),
   case erl_ddll:load_driver(PrivDir, ?SHARED_LIB) of
     ok ->
-      io:format("DRIVER LOADED!!!"),
       ok;
     {error, already_loaded} ->
-      io:format("ALREADY LOADED!!!~n"),
       ok;
     {error, Error} ->
       exit(erl_ddll:format_error(Error))
@@ -58,7 +56,6 @@ start() ->
   spawn(?MODULE, init, []).
 
 stop() ->
-  io:format("DRIVER STOPPED"),
   close = call_port(close),
   ok.
 
@@ -110,12 +107,13 @@ config_get_distribution_type() ->
 config_get_vbucket_by_key(_Key) ->
   not_implemented.
 
--spec get_master(Id :: integer()) -> integer() | {error, no_config}.
-get_master(_Id) ->
-  not_implemented.
+-spec get_master(VbucketId :: integer()) -> ServerIndex :: integer() | {error, no_config}.
+get_master(VbucketId) ->
+  call_port({?DRV_GET_MASTER, VbucketId}).
 
-get_replica(_Id, _Replica) ->
-  not_implemented.
+-spec get_replica(VbucketId :: integer(), Replica ::integer()) -> ServerIndex :: integer() | {error, no_config}.
+get_replica(VbucketId, Replica) ->
+  call_port({?DRV_GET_REPLICA, {VbucketId, Replica}}).
 
 -spec map(Key :: string()) -> {VbucketId :: integer(), ServerIndex :: integer()} | {error, no_config}.
 map(Key) ->

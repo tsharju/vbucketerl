@@ -62,7 +62,10 @@ test_eight_node_config(_Config) ->
   "http://172.16.16.76:9500/default" = vbucket:config_get_couch_api_base(0),
   "172.16.16.76:9000" = vbucket:config_get_rest_api_server(0),
 
-  vbucket = vbucket:config_get_distribution_type().
+  vbucket = vbucket:config_get_distribution_type(),
+
+  4 = vbucket:get_master(8),
+  5 = vbucket:get_replica(8, 0).
 
 test_config_not_parsed(_Config) ->
   {error, no_config} = vbucket:config_get_num_replicas(),
@@ -76,8 +79,8 @@ test_config_not_parsed(_Config) ->
   {error,no_config} = vbucket:config_is_config_node(0),
   {error, no_config} = vbucket:config_get_distribution_type(),
   not_implemented = vbucket:config_get_vbucket_by_key("foobar"),
-  not_implemented = vbucket:get_master(0),
-  not_implemented = vbucket:get_replica(0, 0),
+  {error, no_config} = vbucket:get_master(0),
+  {error, no_config} = vbucket:get_replica(0, 0),
   {error, no_config} = vbucket:map("foobar"),
   not_implemented = vbucket:found_incorrect_master(0, 0).
 

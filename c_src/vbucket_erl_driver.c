@@ -202,6 +202,42 @@ static void is_config_node(VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to_se
   }
 }
 
+static void get_master(VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to_send, int *index)
+{
+  long vbucket_id;
+
+  ei_decode_long(buff, index, &vbucket_id);
+
+  if (vbucket_id < vbucket_config_get_num_vbuckets(h))
+  {
+    ei_x_encode_long(to_send, (long) vbucket_get_master(h, (int) vbucket_id));
+  }
+  else
+  {
+    ei_x_encode_atom(to_send, "not_found");
+  }
+}
+
+static void get_replica(VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to_send, int *index)
+{
+  long vbucket_id;
+  long replica;
+  int arity;
+
+  ei_decode_tuple_header(buff, index, &arity);
+  ei_decode_long(buff, index, &vbucket_id);
+  ei_decode_long(buff, index, &replica);
+
+  if (vbucket_id < vbucket_config_get_num_vbuckets(h))
+  {
+    ei_x_encode_long(to_send, (long) vbucket_get_replica(h, (int) vbucket_id, (int) replica));
+  }
+  else
+  {
+    ei_x_encode_atom(to_send, "not_found");
+  }
+}
+
 static ErlDrvData vbucket_erl_driver_start(ErlDrvPort port, char *buffer)
 {
   drv_data_t* d;
@@ -297,6 +333,15 @@ static void vbucket_erl_driver_output(ErlDrvData handle, char *buff, ErlDrvSizeT
         {
           ei_x_encode_atom(&to_send, "ketama");
         }
+        break;
+
+      case DRV_GET_MASTER:
+        get_master(d->vb_config_handle, buff, &to_send, &index);
+        break;
+
+      case DRV_GET_REPLICA:
+        get_replica(d->vb_config_handle, buff, &to_send, &index);
+        break;
 
       case DRV_MAP:
         map(d->port, d->vb_config_handle, buff, &to_send, &index);
