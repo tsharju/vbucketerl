@@ -9,11 +9,11 @@
 all() -> [test_vbucket_map].
 
 init_per_testcase(_TestCase, Config) ->
-  _Pid = vbucket:start(),
+  ok = application:start(vbucket),
   Config.
 
 end_per_testcase(_TestCase, _Config) ->
-  vbucket:stop().
+  ok = application:stop(vbucket).
 
 test_vbucket_map(_Config) ->
   {ok, Bin} = file:read_file("../../test/config/vbucket_eight_nodes.json"),

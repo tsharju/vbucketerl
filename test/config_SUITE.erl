@@ -13,11 +13,11 @@ all() -> [test_empty_config,
           test_config_parse_multiple_times].
 
 init_per_testcase(_TestCase, Config) ->
-  _Pid = vbucket:start(),
+  ok = application:start(vbucket),
   Config.
 
 end_per_testcase(_TestCase, _Config) ->
-  ok.%% = vbucket:stop().
+  ok = application:stop(vbucket).
 
 test_empty_config(_Config) ->
   {error, {parsing_failed, _}} = vbucket:config_parse("").

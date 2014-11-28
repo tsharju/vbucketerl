@@ -1,7 +1,8 @@
 -module(vbucket).
 
-%% port api
--export([start/0, stop/0, init/0]).
+-behaviour(gen_server).
+
+-export([start_link/0]).
 
 %% libvbucket api
 -export([config_parse/1,
@@ -19,6 +20,14 @@
          get_replica/2,
          map/1,
          found_incorrect_master/2]).
+
+%% gen_server
+-export([init/1,
+         handle_call/3,
+         handle_cast/2,
+         handle_info/2,
+         code_change/3,
+         terminate/2]).
 
 -include("vbucket.hrl").
 
@@ -40,7 +49,9 @@
 -define(DRV_MAP, 13).
 -define(DRV_FOUND_INCORRECT_MASTER, 14).
 
-start() ->
+-record(state, {port}).
+
+start_link() ->
   PrivDir = get_priv_dir(),
   case erl_ddll:load_driver(PrivDir, ?SHARED_LIB) of
     ok ->
@@ -50,114 +61,93 @@ start() ->
     {error, Error} ->
       exit(erl_ddll:format_error(Error))
   end,
-
-  spawn(?MODULE, init, []).
-
--spec stop() -> ok | {error, {atom(), string()}}.
-stop() ->
-  case call_port(close) of
-    close ->
-      ok;
-    Error ->
-      Error
-  end.
+  gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 -spec config_parse(ConfigData :: string()) -> ok | {error, {atom(), string()}}.
 config_parse(ConfigData) ->
-  call_port({?DRV_CONFIG_PARSE, ConfigData}).
+  gen_server:call(?MODULE, {?MODULE, {?DRV_CONFIG_PARSE, ConfigData}}).
 
 -spec config_get_num_replicas() -> integer() | {error, no_config}.
 config_get_num_replicas() ->
-  call_port({?DRV_CONFIG_GET_NUM_REPLICAS, {}}).
+  gen_server:call(?MODULE, {?MODULE, {?DRV_CONFIG_GET_NUM_REPLICAS, {}}}).
 
 -spec config_get_num_vbuckets() -> integer() | {error, no_config}.
 config_get_num_vbuckets() ->
-  call_port({?DRV_CONFIG_GET_NUM_VBUCKETS, {}}).
+  gen_server:call(?MODULE, {?MODULE, {?DRV_CONFIG_GET_NUM_VBUCKETS, {}}}).
 
 -spec config_get_num_servers() -> integer() | {error, no_config}.
 config_get_num_servers() ->
-  call_port({?DRV_CONFIG_GET_NUM_SERVERS, {}}).
+  gen_server:call(?MODULE, {?MODULE, {?DRV_CONFIG_GET_NUM_SERVERS, {}}}).
 
 -spec config_get_user() -> string() | undefined | {error, no_config}.
 config_get_user() ->
-  call_port({?DRV_CONFIG_GET_USER, {}}).
+  gen_server:call(?MODULE, {?MODULE, {?DRV_CONFIG_GET_USER, {}}}).
 
 -spec config_get_password() -> string() | undefined | {error, no_config}.
 config_get_password() ->
-  call_port({?DRV_CONFIG_GET_PASSWORD, {}}).
+  gen_server:call(?MODULE, {?MODULE, {?DRV_CONFIG_GET_PASSWORD, {}}}).
 
 -spec config_get_server(Index :: integer()) -> {Hostname :: string(), Port :: integer()} | not_found | {error, no_config}.
 config_get_server(Index) ->
-  call_port({?DRV_CONFIG_GET_SERVER, Index}).
+  gen_server:call(?MODULE, {?MODULE, {?DRV_CONFIG_GET_SERVER, Index}}).
 
 -spec config_get_couch_api_base(Index :: integer()) -> string() | undefined | {error, no_config}.
 config_get_couch_api_base(Index) ->
-  call_port({?DRV_CONFIG_GET_COUCH_API_BASE, Index}).
+  gen_server:call(?MODULE, {?MODULE, {?DRV_CONFIG_GET_COUCH_API_BASE, Index}}).
 
 -spec config_get_rest_api_server(Index :: integer()) -> string() | undefined | {error, no_config}.
 config_get_rest_api_server(Index) ->
-  call_port({?DRV_CONFIG_GET_REST_API_SERVER, Index}).
+  gen_server:call(?MODULE, {?MODULE, {?DRV_CONFIG_GET_REST_API_SERVER, Index}}).
 
 -spec config_is_config_node(Index :: integer()) -> boolean() | not_found | {error, no_config}.
 config_is_config_node(Index) ->
-  call_port({?DRV_CONFIG_IS_CONFIG_NODE, Index}).
+  gen_server:call(?MODULE, {?MODULE, {?DRV_CONFIG_IS_CONFIG_NODE, Index}}).
 
 -spec config_get_distribution_type() -> vbucket | ketama | undefined | {error, no_config}.
 config_get_distribution_type() ->
-  call_port({?DRV_CONFIG_GET_DISTRIBUTION_TYPE, {}}).
+  gen_server:call(?MODULE, {?MODULE, {?DRV_CONFIG_GET_DISTRIBUTION_TYPE, {}}}).
 
 -spec get_master(VbucketId :: integer()) -> ServerIndex :: integer() | {error, no_config}.
 get_master(VbucketId) ->
-  call_port({?DRV_GET_MASTER, VbucketId}).
+  gen_server:call(?MODULE, {?MODULE, {?DRV_GET_MASTER, VbucketId}}).
 
 -spec get_replica(VbucketId :: integer(), Replica ::integer()) -> ServerIndex :: integer() | {error, no_config}.
 get_replica(VbucketId, Replica) ->
-  call_port({?DRV_GET_REPLICA, {VbucketId, Replica}}).
+  gen_server:call(?MODULE, {?MODULE, {?DRV_GET_REPLICA, {VbucketId, Replica}}}).
 
 -spec map(Key :: string()) -> {VbucketId :: integer(), ServerIndex :: integer()} | {error, no_config}.
 map(Key) ->
-  call_port({?DRV_MAP, Key}).
+  gen_server:call(?MODULE, {?MODULE, {?DRV_MAP, Key}}).
 
 -spec found_incorrect_master(VbucketId :: integer(), WrongServerIndex :: integer()) -> ServerIndex :: integer() | {error, no_config}.
 found_incorrect_master(VbucketId, WrongServerIndex) ->
-  call_port({?DRV_FOUND_INCORRECT_MASTER, {VbucketId, WrongServerIndex}}).
+  gen_server:call(?MODULE, {?MODULE, {?DRV_FOUND_INCORRECT_MASTER, {VbucketId, WrongServerIndex}}}).
 
-init() ->
-  register(?MODULE, self()),
-  try open_port({spawn_driver, ?SHARED_LIB}, [binary]) of
-    Port ->
-      loop(Port)
-    catch
-      _ -> exit(failed_to_open_port)
-  end.
+init([]) ->
+  process_flag(trap_exit, true),
+  Port = open_port({spawn_driver, ?SHARED_LIB}, [binary]),
+  {ok, #state{port = Port}}.
 
-loop(Port) ->
+handle_call({vbucket, Msg}, _From, #state{port = Port} = State) ->
+  port_command(Port, encode(Msg)),
   receive
-    {call, Caller, SendData} ->
-      Port ! {self(), {command, SendData}},
-      receive
-        {Port, {data, RecvData}} ->
-          Caller ! {?MODULE, decode(RecvData)}
-      end,
-      loop(Port);
-    close ->
-      Port ! {self(), close},
-      receive
-        {Port, closed} ->
-          exit(normal)
-      end;
-    {'EXIT', Port, Reason} ->
-      exit({port_terminated, Reason})
+    {Port, {data, RecvData}} ->
+      {reply, decode(RecvData), State}
   end.
 
-call_port(close) ->
-  ?MODULE ! close;
-call_port(Msg) ->
-  ?MODULE ! {call, self(), encode(Msg)},
-  receive
-    {?MODULE, Result} ->
-      Result
-  end.
+handle_cast(_Msg, State) ->
+  {noreply, State}.
+
+handle_info({'EXIT', Port, Reason}, #state{port = Port} = State) ->
+  {stop, {port_terminated, Reason}, State}.
+
+code_change(_OldVsn, State, _Extra) ->
+  {ok, State}.
+
+terminate({port_terminated, _Reason}, _State) ->
+  ok;
+terminate(_Reason, #state{port = Port} = _State) ->
+  port_close(Port).
 
 encode(Msg) ->
   term_to_binary(Msg).
