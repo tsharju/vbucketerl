@@ -115,7 +115,7 @@ get_master(VbucketId) ->
 get_replica(VbucketId, Replica) ->
   gen_server:call(?MODULE, {?MODULE, {?DRV_GET_REPLICA, {VbucketId, Replica}}}).
 
--spec map(Key :: string()) -> {VbucketId :: integer(), ServerIndex :: integer()} | {error, no_config}.
+-spec map(Key :: string()) -> {VbucketId :: integer(), {ServerHost :: string() , ServerPort :: integer()}} | {error, no_config}.
 map(Key) ->
   gen_server:call(?MODULE, {?MODULE, {?DRV_MAP, Key}}).
 
