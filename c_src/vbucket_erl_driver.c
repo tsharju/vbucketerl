@@ -28,73 +28,6 @@ typedef struct drv_data_s {
   VBUCKET_CONFIG_HANDLE vb_config_handle;
 } drv_data_t;
 
-static void config_parse(drv_data_t *d, char *buff, ei_x_buff *to_send, int *index)
-{
-  char* data;
-  int key_size = -1;
-  int erl_type = -1;
-
-  if (d->vb_config_handle != NULL)
-  {
-    // lets clear the old config
-    vbucket_config_destroy(d->vb_config_handle);
-  }
-
-  d->vb_config_handle = vbucket_config_create();
-  if (d->vb_config_handle == NULL)
-  {
-    errno = ENOMEM;
-    driver_failure_posix(d->port, errno);
-  }
-
-  ei_get_type(buff, index, &erl_type, &key_size);
-  data = driver_alloc(key_size);
-  if (data == NULL)
-  {
-    driver_failure_posix(d->port, errno);
-  }
-
-  ei_decode_string(buff, index, data);
-
-  if (vbucket_config_parse(d->vb_config_handle, LIBVBUCKET_SOURCE_MEMORY, data) == 0)
-  {
-    ei_x_encode_atom(to_send, "ok");
-  }
-  else
-  {
-    // failed to parse config
-    ei_x_encode_tuple_header(to_send, 2);
-    ei_x_encode_atom(to_send, "error");
-    ei_x_encode_tuple_header(to_send, 2);
-    ei_x_encode_atom(to_send, "parsing_failed");
-    ei_x_encode_string(to_send, vbucket_get_error_message(d->vb_config_handle));
-  }
-}
-
-static void map(ErlDrvPort port, VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to_send, int *index)
-{
-  char *data;
-  int key_size = -1;
-  int erl_type = -1;
-
-  int vbucket_id, server_idx;
-
-  ei_get_type(buff, index, &erl_type, &key_size);
-  data = driver_alloc(key_size);
-  if (data == NULL)
-  {
-    driver_failure_posix(port, errno);
-  }
-
-  ei_decode_string(buff, index, data);
-
-  vbucket_map(h, data, key_size, &vbucket_id, &server_idx);
-
-  ei_x_encode_tuple_header(to_send, 2);
-  ei_x_encode_long(to_send, (long) vbucket_id);
-  ei_x_encode_long(to_send, (long) server_idx);
-}
-
 static void string_or_atom_undefined(const char *data, ei_x_buff *to_send)
 {
   if (data != NULL)
@@ -144,6 +77,79 @@ static void get_server_host_port_tuple(const char *data, ei_x_buff *to_send, Erl
   ei_x_encode_tuple_header(to_send, 2);
   ei_x_encode_string(to_send, host);
   ei_x_encode_long(to_send, atol(portnum));
+}
+
+static void config_parse(drv_data_t *d, char *buff, ei_x_buff *to_send, int *index)
+{
+  char* data;
+  int key_size = -1;
+  int erl_type = -1;
+
+  if (d->vb_config_handle != NULL)
+  {
+    // lets clear the old config
+    vbucket_config_destroy(d->vb_config_handle);
+  }
+
+  d->vb_config_handle = vbucket_config_create();
+  if (d->vb_config_handle == NULL)
+  {
+    errno = ENOMEM;
+    driver_failure_posix(d->port, errno);
+  }
+
+  ei_get_type(buff, index, &erl_type, &key_size);
+  data = driver_alloc(key_size);
+  if (data == NULL)
+  {
+    driver_failure_posix(d->port, errno);
+  }
+
+  ei_decode_string(buff, index, data);
+
+  if (vbucket_config_parse(d->vb_config_handle, LIBVBUCKET_SOURCE_MEMORY, data) == 0)
+  {
+    ei_x_encode_atom(to_send, "ok");
+  }
+  else
+  {
+    // failed to parse config
+    ei_x_encode_tuple_header(to_send, 2);
+    ei_x_encode_atom(to_send, "error");
+    ei_x_encode_tuple_header(to_send, 2);
+    ei_x_encode_atom(to_send, "parsing_failed");
+    ei_x_encode_string(to_send, vbucket_get_error_message(d->vb_config_handle));
+  }
+}
+
+static void map(ErlDrvPort port, VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to_send, int *index)
+{
+  char *data;
+  const char *server_data;
+  int key_size = -1;
+  int erl_type = -1;
+
+  int vbucket_id, server_idx;
+
+  ei_get_type(buff, index, &erl_type, &key_size);
+  data = driver_alloc(key_size);
+  if (data == NULL)
+  {
+    driver_failure_posix(port, errno);
+  }
+  
+  ei_decode_string(buff, index, data);
+  
+  vbucket_map(h, data, key_size, &vbucket_id, &server_idx);
+  
+  ei_x_encode_tuple_header(to_send, 2);
+  ei_x_encode_long(to_send, (long) vbucket_id);
+  
+  server_data = vbucket_config_get_server(h, server_idx);
+  // split the host:port string to a string int tuple
+  get_server_host_port_tuple(server_data, to_send, port);
+  
+  //ei_x_encode_long(to_send, (long) server_idx);
 }
 
 static void config_get_server_data(int command, ErlDrvPort port, VBUCKET_CONFIG_HANDLE h, char *buff, ei_x_buff *to_send, int *index)

@@ -20,9 +20,7 @@ test_vbucket_map(_Config) ->
   ConfigString = binary_to_list(Bin),
   ok = vbucket:config_parse(ConfigString),
 
-  {VbucketId, ServerIndex} = vbucket:map("foobar"),
+  {VbucketId, Server} = vbucket:map("foobar"),
 
   6 = VbucketId,
-  3 = ServerIndex,
-
-  {"172.16.16.76", 12006} = vbucket:config_get_server(ServerIndex).
+  {"172.16.16.76", 12006} = Server.
